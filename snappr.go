@@ -233,14 +233,8 @@ func (p Policy) Clone() Policy {
 // days/months/years are split for the purpose of determining the calendar
 // day/month/year.
 //
-// Guarantees:
-//   - Pruning is reproducible and idempotent.
-//   - Adding another snapshot then pruning again will never results in the number of needed snapshots increasing.
-//   - There will never be more than one yearly snapshot per calendar year retained due to a yearly rule (and it will be the most recent one in that calendar year).
-//   - There will never be more than one monthly snapshot per calendar year/month retained due to a monthly rule (and it will be the most recent one in that calendar year/month).
-//   - There will never be more than one daily snapshot per calendar year/month/day retained due to a daily rule (and it will be the most recent one in that calendar year/month/day).
-//   - There will never be more than one secondly snapshot per second retained to to a secondly rule (and it will be the most recent one in that second).
-//   - The interval between snapshots retained due to a secondly rule will never be smaller than the smallest interval.
+// See pruneCorrectness in snappr_test.go for some additional notes about
+// guarantees provided by Prune.
 func Prune(snapshots []time.Time, policy Policy) (keep [][]Period, need Policy) {
 	need = policy.Clone()
 
