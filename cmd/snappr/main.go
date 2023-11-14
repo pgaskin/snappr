@@ -52,7 +52,11 @@ func main() {
 		fmt.Printf("  - everything will still work correctly even if timezones are different\n")
 		fmt.Printf("  - snapshots are ordered by their UTC time\n")
 		fmt.Printf("  - timezones will only affect the exact point at which calendar days/months/years are split\n")
-		os.Exit(2)
+		if *Help {
+			os.Exit(0)
+		} else {
+			os.Exit(2)
+		}
 	}
 
 	policy, err := parse(pflag.Args()...)
