@@ -250,7 +250,7 @@ func (p Policy) Clone() Policy {
 }
 
 // Prune prunes the provided list of snapshots, returning a matching slice of
-// periods requring that snapshot, and the remaining number of snapshots
+// periods requiring that snapshot, and the remaining number of snapshots
 // required to fulfill the original policy.
 //
 // The timezone doesn't matter and doesn't need to be consistent since snapshots
