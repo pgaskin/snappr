@@ -27,6 +27,9 @@
 > [!WARNING]
 > This tool is still in development. While most functionality has been tested and I am using this as part of my own backup scripts, it may still have rough edges, and the command-line interface and API are subject to change. Full automated tests have not been implemented yet.
 
+> [!NOTE]
+> **Known Issue:** While the result of a prune is technically correct, pruning after each snapshot with multiple intervals per unit may remove snapshots which do not yet meet the conditions for the longer interval, but would later be needed for it (e.g., the 5th secondly:1h snapshot with the policy `4@secondly:1h 4@secondly:2h`, even though it would later be used for the 3rd secondly:2h snapshot). I am still considering the advantages and disadvantages of the possible ways to fix this. For now, either run prune at an interval larger than the longest interval for a unit with multiple intervals, or don't use multiple intervals for a single unit.
+
 #### CLI Example
 
 ```bash
