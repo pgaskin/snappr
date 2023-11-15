@@ -22,10 +22,13 @@ const (
 	numUnits
 )
 
+// IsValid checks if the unit is known.
 func (u Unit) IsValid() bool {
 	return u >= 0 && u < numUnits
 }
 
+// String returns the name of the unit, which is identical to the constant name,
+// but in lowercase.
 func (u Unit) String() string {
 	if !u.IsValid() {
 		return ""
@@ -45,6 +48,7 @@ func (u Unit) String() string {
 	panic("wtf")
 }
 
+// Compare strictly compares two units.
 func (u Unit) Compare(other Unit) int {
 	return cmp.Compare(u, other)
 }
@@ -85,6 +89,7 @@ type Period struct {
 	Interval int // ignored if Unit is Last (normalized to 1), must be > 0
 }
 
+// Normalize validates and canonicalizes a period.
 func (p Period) Normalize() (Period, bool) {
 	ok := p.Unit.IsValid()
 	if p.Unit == Last {
@@ -95,6 +100,8 @@ func (p Period) Normalize() (Period, bool) {
 	return p, ok
 }
 
+// String formats the period in a human-readable form. The exact output is
+// subject to change.
 func (p Period) String() string {
 	p, ok := p.Normalize()
 	if !ok {
@@ -121,6 +128,7 @@ func (p Period) String() string {
 	}
 }
 
+// Compare strictly compares the provided periods.
 func (p Period) Compare(other Period) int {
 	if x := p.Unit.Compare(other.Unit); x != 0 {
 		return x
@@ -128,7 +136,8 @@ func (p Period) Compare(other Period) int {
 	return cmp.Compare(p.Interval, other.Interval)
 }
 
-// PrevTime gets the previous
+// PrevTime gets the previous interval for the provided time. The time is not
+// truncated to the start of the interval.
 func (p Period) PrevTime(t time.Time) time.Time {
 	if !p.Unit.IsValid() {
 		return time.Time{}
@@ -156,12 +165,16 @@ type Policy struct {
 	count map[Period]int // Period is normalized and valid
 }
 
+// MustSet is like Set, but panics if the period is invalid or has already been
+// used.
 func (p *Policy) MustSet(unit Unit, interval, count int) {
 	if !p.Set(Period{unit, interval}, count) {
 		panic("invalid period")
 	}
 }
 
+// Set sets the count for a period if it is valid and hasn't already been set. A
+// count of zero removes the period.
 func (p *Policy) Set(period Period, count int) (ok bool) {
 	if count < 0 {
 		count = -1
@@ -180,6 +193,7 @@ func (p *Policy) Set(period Period, count int) (ok bool) {
 	return
 }
 
+// Get gets the count for a period if it is set.
 func (p Policy) Get(period Period) (count int) {
 	if p.count != nil {
 		if period, ok := period.Normalize(); ok {
@@ -189,6 +203,7 @@ func (p Policy) Get(period Period) (count int) {
 	return
 }
 
+// Each loops over all periods in order.
 func (p Policy) Each(fn func(period Period, count int)) {
 	if p.count != nil {
 		periods := make([]Period, 0, len(p.count))
@@ -203,6 +218,8 @@ func (p Policy) Each(fn func(period Period, count int)) {
 	}
 }
 
+// String formats the policy in a human-readable form. The exact output is
+// subject to change.
 func (p Policy) String() string {
 	var b []byte
 	p.Each(func(period Period, count int) {
@@ -221,6 +238,7 @@ func (p Policy) String() string {
 	return string(b)
 }
 
+// Clone returns a copy of the policy.
 func (p Policy) Clone() Policy {
 	if p.count == nil {
 		return Policy{}
