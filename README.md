@@ -70,10 +70,16 @@ options:
   -v, --invert            output the snapshots to keep instead of the ones to prune
   -L, --local-time        use the default timezone rather than UTC if no timezone is parsed from the timestamp
   -o, --only              only print the part of the line matching the regexp
-  -p, --parse string      parse the timestamp using the specified Go time format (see pkg.go.dev/time#pkg-constants) rather than a unix timestamp
+  -p, --parse string      parse the timestamp using the specified Go time format (see pkg.go.dev/time#pkg-constants and the examples below) rather than a unix timestamp
   -q, --quiet             do not show warnings about invalid or unmatched input lines
   -s, --summarize         summarize retention policy results to stderr
   -w, --why               explain why each snapshot is being kept to stderr
+
+time format examples:
+  - Mon Jan 02 15:04:05 2006
+  - 02 Jan 06 15:04 MST
+  - 2006-01-02T15:04:05Z07:00
+  - 2006-01-02T15:04:05
 
 policy: N@unit:X
   - keep the last N snapshots every X units
