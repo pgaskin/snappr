@@ -168,13 +168,16 @@ type Policy struct {
 // MustSet is like Set, but panics if the period is invalid or has already been
 // used.
 func (p *Policy) MustSet(unit Unit, interval, count int) {
+	if p.Get(Period{unit, interval}) != 0 {
+		panic("duplicate period")
+	}
 	if !p.Set(Period{unit, interval}, count) {
 		panic("invalid period")
 	}
 }
 
-// Set sets the count for a period if it is valid and hasn't already been set. A
-// count of zero removes the period.
+// Set sets the count for a period if it is valid, replacing any existing count.
+// A count of zero removes the period.
 func (p *Policy) Set(period Period, count int) (ok bool) {
 	if count < 0 {
 		count = -1
