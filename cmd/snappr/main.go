@@ -40,7 +40,7 @@ func main() {
 		fmt.Printf("  - if :X is omitted, it defaults to :1\n")
 		fmt.Printf("  - there may only be one N specified for each unit:X pair\n")
 		fmt.Printf("\nunit:\n")
-		fmt.Printf("  last       snapshot count\n")
+		fmt.Printf("  last       snapshot count (X must be 1)\n")
 		fmt.Printf("  secondly   clock seconds (can also use the format #h#m#s, omitting any zeroed units)\n")
 		fmt.Printf("  daily      calendar days\n")
 		fmt.Printf("  monthly    calendar months\n")
@@ -59,7 +59,7 @@ func main() {
 		}
 	}
 
-	policy, err := parse(pflag.Args()...)
+	policy, err := snappr.ParsePolicy(pflag.Args()...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "snappr: fatal: invalid policy: %v\n", err)
 		os.Exit(2)
@@ -155,63 +155,6 @@ func main() {
 		})
 		fmt.Fprintf(os.Stderr, "snappr: summary: pruning %d/%d snapshots\n", pruned, len(keep))
 	}
-}
-
-func parse(policy ...string) (snappr.Policy, error) {
-	var p snappr.Policy
-
-	for _, s := range policy {
-		n, u, hasN := strings.Cut(s, "@")
-		if !hasN {
-			n, u = "-1", n
-		}
-
-		u, x, hasX := strings.Cut(u, ":")
-		if !hasX {
-			x = "1"
-		}
-
-		var vu snappr.Unit
-		switch u {
-		case "last":
-			vu = snappr.Last
-		case "secondly":
-			vu = snappr.Secondly
-		case "daily":
-			vu = snappr.Daily
-		case "monthly":
-			vu = snappr.Monthly
-		case "yearly":
-			vu = snappr.Yearly
-		default:
-			return p, fmt.Errorf("invalid policy %q: unknown unit %q", s, u)
-		}
-
-		vn, err := strconv.ParseInt(n, 10, 64)
-		if err != nil {
-			return p, fmt.Errorf("invalid policy %q: parse count %q: %w", s, n, err)
-		}
-
-		vx, err := strconv.ParseInt(x, 10, 64)
-		if vu == snappr.Secondly && err != nil {
-			var tmp time.Duration
-			tmp, err = time.ParseDuration(x)
-			vx = int64(tmp / time.Second)
-		}
-		if err != nil {
-			return p, fmt.Errorf("invalid policy %q: parse interval %q: %w", s, x, err)
-		}
-
-		if vu == snappr.Last && vx != 1 {
-			return p, fmt.Errorf("invalid policy %q: interval must be 1 for unit last", s)
-		}
-
-		if !p.Set(snappr.Period{Unit: vu, Interval: int(vx)}, int(vn)) {
-			return p, fmt.Errorf("invalid policy %q: duplicate %s:%d", s, u, vx)
-		}
-	}
-
-	return p, nil
 }
 
 func scan(r io.Reader, extract *regexp.Regexp, tz *time.Location, layout string, quiet, only bool) (times []time.Time, lines []string, err error) {
