@@ -13,6 +13,117 @@ import (
 	"time"
 )
 
+func TestParsePolicy(t *testing.T) {
+	for _, tc := range []func(*Policy) string{
+		func(p *Policy) string {
+			return "sdfsdf"
+		},
+		func(p *Policy) string {
+			return ""
+		},
+		func(p *Policy) string {
+			p.MustSet(Yearly, 1, -1)
+			return "yearly"
+		},
+		func(p *Policy) string {
+			p.MustSet(Yearly, 1, -1)
+			return "    -2@yearly   "
+		},
+		func(p *Policy) string {
+			return "yearly:0"
+		},
+		func(p *Policy) string {
+			return "last:2"
+		},
+		func(p *Policy) string {
+			return "0@last:1"
+		},
+		func(p *Policy) string {
+			return "daily daily"
+		},
+		func(p *Policy) string {
+			return "secondly:1ns"
+		},
+		func(p *Policy) string {
+			return "secondly:999ms"
+		},
+		func(p *Policy) string {
+			p.MustSet(Secondly, 1, -1)
+			return "secondly:1000ms"
+		},
+		func(p *Policy) string {
+			return "a@secondly"
+		},
+		func(p *Policy) string {
+			return "secondly:sdf"
+		},
+		func(p *Policy) string {
+			return "secondly:1h0"
+		},
+		func(p *Policy) string {
+			p.MustSet(Yearly, 5, -1)
+			p.MustSet(Yearly, 1, 2)
+			p.MustSet(Monthly, 3, 2)
+			p.MustSet(Daily, 1, 7)
+			p.MustSet(Daily, 7, 4)
+			p.MustSet(Secondly, int(2*time.Hour/time.Second), 18)
+			p.MustSet(Secondly, 1, 5)
+			p.MustSet(Secondly, 60, 5)
+			p.MustSet(Secondly, 12345, 2)
+			return "  yearly:5\t2@yearly 2@monthly:3 7@daily:1 4@daily:7 18@secondly:2h 5@secondly     5@secondly:60 2@secondly:3h25m45s"
+		},
+	} {
+		t.Run("", func(t *testing.T) {
+			var exp Policy
+			str := tc(&exp)
+			invalid := len(exp.count) == 0 && str != ""
+
+			var act Policy
+			err := act.UnmarshalText([]byte(str))
+			if err == nil {
+				t.Logf("\ninput: %s\npolicy: %s", str, act)
+			} else {
+				t.Logf("\ninput: %s\nerror: %v", str, err)
+			}
+			if invalid {
+				if err == nil {
+					t.Fatalf("parse %q: expected error, got no error (policy: %s)", str, act)
+				}
+				return
+			} else {
+				if err != nil {
+					t.Fatalf("parse %q: unexpected error (error: %v)", str, err)
+				}
+			}
+			if !maps.Equal(act.count, exp.count) {
+				t.Errorf("parse %q: incorrect\nexp %s\nact %s", str, exp, act)
+			}
+
+			var act1 Policy
+			str1, err := act.MarshalText()
+			if err != nil {
+				t.Fatalf("marshal policy: unexpected error %v", err)
+			} else {
+				t.Logf("\ncanonical: %s", string(str1))
+			}
+			err = act1.UnmarshalText(str1)
+			if err != nil {
+				t.Fatalf("parse marshaled policy %q: unexpected error %v", string(str1), err)
+			}
+			if !maps.Equal(act1.count, act.count) {
+				t.Errorf("parse %q: parsed marshaled policy is not the same\nexp %s\nact %s", str, act, act1)
+			}
+			str2, err := act1.MarshalText()
+			if err != nil {
+				t.Fatalf("marshal policy: unexpected error %v", err)
+			}
+			if !bytes.Equal(str1, str2) {
+				t.Errorf("marshal policy: not reproducible:\nexp %s\nact %s", string(str1), string(str2))
+			}
+		})
+	}
+}
+
 // pruneCorrectness checks that guarantees provided by Prune are upheld.
 func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 	var (

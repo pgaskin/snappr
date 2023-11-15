@@ -3,6 +3,7 @@ package snappr
 
 import (
 	"cmp"
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
@@ -247,6 +248,122 @@ func (p Policy) Clone() Policy {
 		return Policy{}
 	}
 	return Policy{maps.Clone(p.count)}
+}
+
+// ParsePolicy parses a policy from the provided rules.
+//
+// Each rule is in the form N@unit:X, where N is the snapshot count, unit is a
+// unit name, and X is the interval. If N is negative, an infinite number of
+// snapshots is retained. N must not be zero. X must be greater than zero. If N@
+// is omitted, it defaults to -1. If :X is omitted, it defaults to 1. For the
+// "last" unit, X must be 1. For the "secondly" unit, X can also be a duration
+// in the format used by [time.ParseDuration]. Each rule must be unique by the
+// unit:X.
+func ParsePolicy(rule ...string) (Policy, error) {
+	var p Policy
+
+	for _, s := range rule {
+		n, u, hasN := strings.Cut(s, "@")
+		if !hasN {
+			n, u = "-1", n
+		}
+
+		u, x, hasX := strings.Cut(u, ":")
+		if !hasX {
+			x = "1"
+		}
+
+		var vu Unit
+		switch strings.ToLower(u) {
+		case "last":
+			vu = Last
+		case "secondly":
+			vu = Secondly
+		case "daily":
+			vu = Daily
+		case "monthly":
+			vu = Monthly
+		case "yearly":
+			vu = Yearly
+		default:
+			return p, fmt.Errorf("rule %q: unknown unit %q", s, u)
+		}
+
+		vn, err := strconv.ParseInt(n, 10, 64)
+		if err != nil {
+			return p, fmt.Errorf("rule %q: parse count %q: %w", s, n, err)
+		}
+		if vn == 0 {
+			return p, fmt.Errorf("rule %q: count must not be zero", s)
+		}
+
+		vx, err := strconv.ParseInt(x, 10, 64)
+		if vu == Secondly && err != nil {
+			var tmp time.Duration
+			tmp, err = time.ParseDuration(x)
+			vx = int64(tmp / time.Second)
+		}
+		if err != nil {
+			return p, fmt.Errorf("rule %q: parse interval %q: %w", s, x, err)
+		}
+		if vx < 1 {
+			return p, fmt.Errorf("rule %q: interval must be > 0", s)
+		}
+		if vu == Last && vx != 1 {
+			return p, fmt.Errorf("rule %q: interval must be 1 for unit last", s)
+		}
+		if p.Get(Period{Unit: vu, Interval: int(vx)}) != 0 {
+			return p, fmt.Errorf("rule %q: duplicate %s:%d", s, u, vx)
+		}
+		if !p.Set(Period{Unit: vu, Interval: int(vx)}, int(vn)) {
+			return p, fmt.Errorf("rule %q: invalid period %s:%d", s, u, vx)
+		}
+	}
+
+	return p, nil
+}
+
+// UnmarshalText parses the provided text into p, replacing the existing
+// policy. It splits the text by whitespace and calls ParsePolicy.
+func (p *Policy) UnmarshalText(b []byte) error {
+	v, err := ParsePolicy(strings.Fields(string(b))...)
+	if err == nil {
+		*p = v
+	}
+	return err
+}
+
+// MarshalText encodes the policy into a form usable by UnmarshalText. The
+// output is the canonical form of the rules (i.e., all equivalent policies will
+// result in the same output).
+func (p Policy) MarshalText() ([]byte, error) {
+	var b []byte
+	p.Each(func(period Period, count int) {
+		if b != nil {
+			b = append(b, ' ')
+		}
+		if count > 0 {
+			b = strconv.AppendInt(b, int64(count), 10)
+			b = append(b, '@')
+		}
+		b = append(b, period.Unit.String()...)
+		if period.Interval != 1 {
+			b = append(b, ':')
+			if period.Unit == Secondly && period.Interval >= 60 {
+				s := (time.Second * time.Duration(period.Interval)).String()
+				if v, ok := strings.CutSuffix(s, "m0s"); ok {
+					s = v + "m"
+				}
+				if v, ok := strings.CutSuffix(s, "h0m"); ok {
+					s = v + "h"
+				}
+				b = append(b, s...)
+			} else {
+				b = strconv.AppendInt(b, int64(period.Interval), 10)
+			}
+		}
+	})
+	return b, nil
 }
 
 // Prune prunes the provided list of snapshots, returning a matching slice of
