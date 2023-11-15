@@ -131,7 +131,9 @@ func main() {
 			for i, period := range why {
 				ps[i] = period.String()
 			}
-			fmt.Fprintf(os.Stderr, "snappr: why: keep [%*d/%*d] %s :: %s\n", ndig, at+1, ndig, len(keep), times[at].Format("Mon 2006 Jan _2 15:04:05"), strings.Join(ps, ", "))
+			if *Why {
+				fmt.Fprintf(os.Stderr, "snappr: why: keep [%*d/%*d] %s :: %s\n", ndig, at+1, ndig, len(keep), snapshots[at].Format("Mon 2006 Jan _2 15:04:05"), strings.Join(ps, ", "))
+			}
 		} else {
 			pruned++
 		}
