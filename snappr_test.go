@@ -177,7 +177,7 @@ func TestPrune(t *testing.T) {
 			policy.MustSet(Secondly, int(time.Hour/time.Second), 6)
 			policy.MustSet(Last, 1, 3)
 
-			return times, policy, "8e05fbf01879c23f1b0754562ff78c8274eeb5ef504c170c7821c54c82881d84"
+			return times, policy, "bf49acdf6f509786338a6646f7e17a4a4d7bdc987329c0b368f9c383dc56b0e3"
 		},
 		// TODO: more cases
 	} {
@@ -265,36 +265,36 @@ func ExamplePrune() {
 	fmt.Println(need)
 
 	// Output:
-	// last (3), every 1h0m0s (6), every day (7), every 2 months (6), every 6 months (4), every year (3), every 2 years (10), every 5 years (inf)
-	// Fri Dec 31 23:55:29 1999 | every 2 years
-	// Mon Dec 31 23:34:57 2001 | every 2 years
-	// Wed Dec 31 23:53:53 2003 | every 2 years, every 5 years
-	// Sat Dec 31 23:53:06 2005 | every 2 years
-	// Mon Dec 31 23:52:17 2007 | every 2 years
-	// Wed Dec 31 23:41:54 2008 | every 5 years
-	// Thu Dec 31 23:51:30 2009 | every 2 years
-	// Sat Dec 31 23:40:26 2011 | every year, every 2 years
-	// Thu May 31 23:33:05 2012 | every 6 months
-	// Wed Oct 31 23:35:45 2012 | every 6 months
-	// Mon Dec 31 23:10:18 2012 | every 2 months, every year
-	// Thu Jan 31 23:53:21 2013 | every 2 months
-	// Sun Mar 31 23:17:06 2013 | every 2 months, every 6 months
-	// Fri May 31 23:32:10 2013 | every 2 months
-	// Wed Jul 31 23:57:29 2013 | every 2 months
-	// Mon Sep  2 23:41:05 2013 | every day
-	// Tue Sep  3 23:51:06 2013 | every day
-	// Wed Sep  4 23:51:53 2013 | every day
-	// Thu Sep  5 23:31:54 2013 | every day
-	// Fri Sep  6 23:52:26 2013 | every day
-	// Sat Sep  7 23:12:42 2013 | every day
-	// Sun Sep  8 16:47:35 2013 | every 1h0m0s
-	// Sun Sep  8 18:18:52 2013 | every 1h0m0s
-	// Sun Sep  8 19:29:23 2013 | every 1h0m0s
-	// Sun Sep  8 20:40:55 2013 | every 1h0m0s
-	// Sun Sep  8 22:12:12 2013 | last, every 1h0m0s
+	// last (3), 1h time (6), 1 day (7), 2 month (6), 6 month (4), 1 year (3), 2 year (10), 5 year (inf)
+	// Fri Dec 31 23:55:29 1999 | 2 year
+	// Mon Dec 31 23:34:57 2001 | 2 year
+	// Wed Dec 31 23:53:53 2003 | 2 year, 5 year
+	// Sat Dec 31 23:53:06 2005 | 2 year
+	// Mon Dec 31 23:52:17 2007 | 2 year
+	// Wed Dec 31 23:41:54 2008 | 5 year
+	// Thu Dec 31 23:51:30 2009 | 2 year
+	// Sat Dec 31 23:40:26 2011 | 1 year, 2 year
+	// Thu May 31 23:33:05 2012 | 6 month
+	// Wed Oct 31 23:35:45 2012 | 6 month
+	// Mon Dec 31 23:10:18 2012 | 2 month, 1 year
+	// Thu Jan 31 23:53:21 2013 | 2 month
+	// Sun Mar 31 23:17:06 2013 | 2 month, 6 month
+	// Fri May 31 23:32:10 2013 | 2 month
+	// Wed Jul 31 23:57:29 2013 | 2 month
+	// Mon Sep  2 23:41:05 2013 | 1 day
+	// Tue Sep  3 23:51:06 2013 | 1 day
+	// Wed Sep  4 23:51:53 2013 | 1 day
+	// Thu Sep  5 23:31:54 2013 | 1 day
+	// Fri Sep  6 23:52:26 2013 | 1 day
+	// Sat Sep  7 23:12:42 2013 | 1 day
+	// Sun Sep  8 16:47:35 2013 | 1h time
+	// Sun Sep  8 18:18:52 2013 | 1h time
+	// Sun Sep  8 19:29:23 2013 | 1h time
+	// Sun Sep  8 20:40:55 2013 | 1h time
+	// Sun Sep  8 22:12:12 2013 | last, 1h time
 	// Sun Sep  8 23:22:43 2013 | last
-	// Sun Sep  8 23:33:14 2013 | last, every 1h0m0s, every day, every 2 months, every 6 months, every year, every 2 years, every 5 years
-	// last (0), every 1h0m0s (0), every day (0), every 2 months (0), every 6 months (0), every year (0), every 2 years (2), every 5 years (inf)
+	// Sun Sep  8 23:33:14 2013 | last, 1h time, 1 day, 2 month, 6 month, 1 year, 2 year, 5 year
+	// last (0), 1h time (0), 1 day (0), 2 month (0), 6 month (0), 1 year (0), 2 year (2), 5 year (inf)
 }
 
 func prand[T ~uint | int | uint8 | int8 | uint16 | int16 | uint32 | int32 |

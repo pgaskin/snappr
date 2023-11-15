@@ -104,16 +104,20 @@ func (p Period) String() string {
 	case Last:
 		return p.Unit.String()
 	case Secondly:
-		return "every " + (time.Second * time.Duration(p.Interval)).String()
+		s := (time.Second * time.Duration(p.Interval)).String()
+		if v, ok := strings.CutSuffix(s, "m0s"); ok {
+			s = v + "m"
+		}
+		if v, ok := strings.CutSuffix(s, "h0m"); ok {
+			s = v + "h"
+		}
+		return s + " time"
 	default:
 		k := strings.TrimSuffix(p.Unit.String(), "ly")
 		if k == "dai" {
 			k = "day"
 		}
-		if p.Interval == 1 {
-			return "every " + k
-		}
-		return "every " + strconv.Itoa(p.Interval) + " " + k + "s"
+		return strconv.Itoa(p.Interval) + " " + k
 	}
 }
 
