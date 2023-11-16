@@ -129,6 +129,7 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 	var (
 		prevNeed   Policy
 		prevSubset = -1
+		lastKept   []time.Time
 	)
 	for i, subset := 0, 0; subset < len(snapshots); i++ {
 		allSnapshots := snapshots
@@ -245,6 +246,33 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 		// TODO
 
 		/**
+		 * Incrementally pruning snapshots will result in the same amount of
+		 * snapshots as pruning them all at once.
+		 */
+		if subset != 0 {
+			lastKept = append(lastKept, snapshots[prevSubset:]...)
+			pKeep, _ := Prune(lastKept, policy)
+
+			var incN, absN int
+			lastKept = lastKept[:0]
+			for _, reason := range pKeep {
+				if len(reason) != 0 {
+					incN++
+				}
+			}
+			for at, reason := range keep {
+				if len(reason) != 0 {
+					lastKept = append(lastKept, snapshots[at])
+					absN++
+				}
+			}
+
+			if incN != absN {
+				return fmt.Errorf("subset %d->%d: prune consistency: Prune([:%d])=%d != Prune(Prune([:%d]) + [%d:%d])=%d", prevSubset, subset, subset, absN, prevSubset, prevSubset, subset, incN)
+			}
+		}
+
+		/**
 		 * Add an increasing number of snapshots at a time (if the first few
 		 * work fine wrt the prune consistency checks, it's unlikely that adding
 		 * more will cause issues, so there's no need to do it one at a time --
@@ -288,7 +316,7 @@ func TestPrune(t *testing.T) {
 			policy.MustSet(Secondly, int(time.Hour/time.Second), 6)
 			policy.MustSet(Last, 1, 3)
 
-			return times, policy, "bf49acdf6f509786338a6646f7e17a4a4d7bdc987329c0b368f9c383dc56b0e3"
+			return times, policy, "a48749a9d6e92ebbc09a5fb3b46a304879fdb1aeebe28264c0885cea0048f8d1"
 		},
 		// TODO: more cases
 	} {
@@ -377,34 +405,40 @@ func ExamplePrune() {
 
 	// Output:
 	// last (3), 1h time (6), 1 day (7), 2 month (6), 6 month (4), 1 year (3), 2 year (10), 5 year (inf)
-	// Fri Dec 31 23:55:29 1999 | 2 year
-	// Mon Dec 31 23:34:57 2001 | 2 year
-	// Wed Dec 31 23:53:53 2003 | 2 year, 5 year
-	// Sat Dec 31 23:53:06 2005 | 2 year
-	// Mon Dec 31 23:52:17 2007 | 2 year
-	// Wed Dec 31 23:41:54 2008 | 5 year
-	// Thu Dec 31 23:51:30 2009 | 2 year
-	// Sat Dec 31 23:40:26 2011 | 1 year, 2 year
-	// Thu May 31 23:33:05 2012 | 6 month
-	// Wed Oct 31 23:35:45 2012 | 6 month
-	// Mon Dec 31 23:10:18 2012 | 2 month, 1 year
-	// Thu Jan 31 23:53:21 2013 | 2 month
-	// Sun Mar 31 23:17:06 2013 | 2 month, 6 month
-	// Fri May 31 23:32:10 2013 | 2 month
-	// Wed Jul 31 23:57:29 2013 | 2 month
-	// Mon Sep  2 23:41:05 2013 | 1 day
-	// Tue Sep  3 23:51:06 2013 | 1 day
-	// Wed Sep  4 23:51:53 2013 | 1 day
-	// Thu Sep  5 23:31:54 2013 | 1 day
-	// Fri Sep  6 23:52:26 2013 | 1 day
-	// Sat Sep  7 23:12:42 2013 | 1 day
-	// Sun Sep  8 16:47:35 2013 | 1h time
+	// Fri Dec 31 23:55:29 1999 | 2 year, 5 year
+	// Sat Jan  1 00:36:00 2000 | 2 year, 5 year
+	// Tue Jan  1 00:45:28 2002 | 2 year
+	// Thu Jan  1 00:04:24 2004 | 2 year
+	// Sat Jan  1 00:04:16 2005 | 5 year
+	// Sun Jan  1 00:43:52 2006 | 2 year
+	// Tue Jan  1 00:02:48 2008 | 2 year
+	// Fri Jan  1 00:42:16 2010 | 2 year, 5 year
+	// Sat Jan  1 00:11:21 2011 | 1 year
+	// Thu Dec  1 00:18:09 2011 | 6 month
+	// Sun Jan  1 00:01:12 2012 | 1 year, 2 year
+	// Fri Jun  1 00:43:36 2012 | 6 month
+	// Mon Oct  1 00:13:28 2012 | 2 month
+	// Sat Dec  1 00:38:47 2012 | 2 month, 6 month
+	// Tue Jan  1 00:01:04 2013 | 1 year
+	// Fri Feb  1 00:33:52 2013 | 2 month
+	// Mon Apr  1 00:27:37 2013 | 2 month
+	// Sat Jun  1 00:12:41 2013 | 2 month, 6 month
+	// Thu Aug  1 00:38:00 2013 | 2 month
+	// Mon Sep  2 00:01:04 2013 | 1 day
+	// Tue Sep  3 00:31:51 2013 | 1 day
+	// Wed Sep  4 00:01:37 2013 | 1 day
+	// Thu Sep  5 00:32:24 2013 | 1 day
+	// Fri Sep  6 00:12:25 2013 | 1 day
+	// Sat Sep  7 00:43:12 2013 | 1 day
+	// Sun Sep  8 00:03:28 2013 | 1 day
 	// Sun Sep  8 18:18:52 2013 | 1h time
-	// Sun Sep  8 19:29:23 2013 | 1h time
-	// Sun Sep  8 20:40:55 2013 | 1h time
-	// Sun Sep  8 22:12:12 2013 | last, 1h time
-	// Sun Sep  8 23:22:43 2013 | last
-	// Sun Sep  8 23:33:14 2013 | last, 1h time, 1 day, 2 month, 6 month, 1 year, 2 year, 5 year
+	// Sun Sep  8 19:09:38 2013 | 1h time
+	// Sun Sep  8 20:20:09 2013 | 1h time
+	// Sun Sep  8 21:51:26 2013 | 1h time
+	// Sun Sep  8 22:01:57 2013 | 1h time
+	// Sun Sep  8 22:12:12 2013 | last
+	// Sun Sep  8 23:22:43 2013 | last, 1h time
+	// Sun Sep  8 23:33:14 2013 | last
 	// last (0), 1h time (0), 1 day (0), 2 month (0), 6 month (0), 1 year (0), 2 year (2), 5 year (inf)
 }
 

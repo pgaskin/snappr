@@ -54,36 +54,6 @@ func (u Unit) Compare(other Unit) int {
 	return cmp.Compare(u, other)
 }
 
-// TimeEquals checks whether a and b are equal when truncated to the provided
-// unit.
-func (u Unit) TimeEquals(a, b time.Time) bool {
-	if !u.IsValid() {
-		return false
-	}
-	a = a.Truncate(-1)
-	b = b.Truncate(-1)
-	switch u {
-	case Last:
-		return a.Equal(b)
-	case Secondly:
-		return a.Unix() == b.Unix()
-	case Daily:
-		ay, am, ad := a.Date()
-		by, bm, bd := b.Date()
-		return ay == by && am == bm && ad == bd
-	case Monthly:
-		ay, am, _ := a.Date()
-		by, bm, _ := b.Date()
-		return ay == by && am == bm
-	case Yearly:
-		ay, _, _ := a.Date()
-		by, _, _ := b.Date()
-		return ay == by
-
-	}
-	panic("wtf")
-}
-
 // Period is a specific time interval for snapshot retention.
 type Period struct {
 	Unit     Unit
@@ -135,28 +105,6 @@ func (p Period) Compare(other Period) int {
 		return x
 	}
 	return cmp.Compare(p.Interval, other.Interval)
-}
-
-// PrevTime gets the previous interval for the provided time. The time is not
-// truncated to the start of the interval.
-func (p Period) PrevTime(t time.Time) time.Time {
-	if !p.Unit.IsValid() {
-		return time.Time{}
-	}
-	t = t.Truncate(-1)
-	switch p.Unit {
-	case Last:
-		return t.Add(-1)
-	case Secondly:
-		return t.Add(-time.Second * time.Duration(p.Interval))
-	case Daily:
-		return t.AddDate(0, 0, -p.Interval)
-	case Monthly:
-		return t.AddDate(0, -p.Interval, 0)
-	case Yearly:
-		return t.AddDate(-p.Interval, 0, 0)
-	}
-	panic("wtf")
 }
 
 // Policy defines a retention policy for snapshots.
@@ -379,6 +327,11 @@ func (p Policy) MarshalText() ([]byte, error) {
 // guarantees provided by Prune.
 func Prune(snapshots []time.Time, policy Policy) (keep [][]Period, need Policy) {
 	need = policy.Clone()
+	keep = make([][]Period, len(snapshots))
+
+	if len(snapshots) == 0 {
+		return
+	}
 
 	// sort the snapshots descending
 	sorted := make([]int, len(snapshots))
@@ -388,52 +341,69 @@ func Prune(snapshots []time.Time, policy Policy) (keep [][]Period, need Policy) 
 	slices.SortFunc(sorted, func(a, b int) int {
 		return snapshots[a].Compare(snapshots[b])
 	})
-	slices.Reverse(sorted)
 
-	// figure out which ones to keep
-	keep = make([][]Period, len(snapshots))
-	lastPeriod := map[Period]time.Time{}
-	lastPeriodIdx := map[Period]int{}
-	lastUnit := [numUnits]time.Time{}
-	for _, idx := range sorted {
-		at := snapshots[idx].Truncate(-1) // remove monotonic component
+	policy.Each(func(period Period, count int) {
+		var (
+			match = make([]bool, len(snapshots))
+			last  int64 // period index
+			prev  bool
+		)
+		// start from the beginning, marking the first one in each period
+		for i := range snapshots {
+			var current int64
+			switch t := snapshots[sorted[i]].Truncate(-1); period.Unit {
+			case Last:
+				match[i] = true
+				continue
+			case Secondly:
+				current = t.Unix()
+			case Daily:
+				n, x := t.Year(), 0
 
-		need.Each(func(period Period, count int) {
+				x = n / 400
+				current += int64(x * (365*400 + 97)) // days per 400 years
+				n -= x * 400
+
+				x = n / 100
+				current += int64(x * (365*100 + 24)) // days per 100 years
+				n -= x * 100
+
+				x = n / 4
+				current += int64(x * (365*4 + 1)) // days per 4 years
+				n -= x * 4
+
+				current += int64(x) + int64(t.YearDay())
+			case Monthly:
+				year, month, _ := t.Date()
+				current = (int64(year)*12 + int64(month))
+			case Yearly:
+				current = int64(t.Year())
+			default:
+				panic("wtf")
+			}
+			current /= int64(period.Interval)
+
+			if !prev || current != last {
+				match[i] = true
+				last = current
+				prev = true
+			}
+		}
+		// preserve from the end and stay within the count
+		for i := range match {
+			i = len(match) - 1 - i
 			if count == 0 {
-				return
+				break
 			}
-
-			// we don't care about times for the Last unit
-			if period.Unit == Last {
-				keep[idx] = append(keep[idx], period)
-				if count > 0 {
-					need.count[period]--
-				}
-				return
+			if !match[i] {
+				continue
 			}
-
-			// check if we need this snapshot for the specified policy
-			if last := lastPeriod[period]; !last.IsZero() { // if we already have the first snapshot
-				if want := period.PrevTime(last); want.Before(at) { // and on or ahead of schedule
-					if !period.Unit.TimeEquals(want, at) { // and not scheduled for one in this period+unit
-						return // then skip this snapshot
-					}
-				}
-			}
-
-			// see if can't reuse the existing snapshot for the unit-truncated time (i.e., disregarding the interval)
-			if have := lastUnit[period.Unit]; have.IsZero() || !period.Unit.TimeEquals(have, at) { // if another interval already caused a retention for this unit
-				lastPeriod[period] = at
-				lastPeriodIdx[period] = idx
-			}
-
-			// keep the snapshot
-			keep[lastPeriodIdx[period]] = append(keep[lastPeriodIdx[period]], period)
 			if count > 0 {
-				need.count[period]--
+				count--
 			}
-		})
-	}
-
+			keep[sorted[i]] = append(keep[sorted[i]], period)
+		}
+		need.count[period] = count
+	})
 	return
 }

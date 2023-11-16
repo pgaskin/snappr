@@ -10,7 +10,7 @@
   Works with any tool or script which can output a list with dates somewhere in it.
 
 - **Approximate snapshot selection.** \
-  Snapshots periods are not fixed to specific dates. While the latest one in each period (e.g., the last day of a month) will be used if possible, ones from other days will still be retained if required.
+  Snapshots periods are not fixed to specific dates. The first matching snapshot for each period is kept (note that this means you'll usually want to keep at least the last snapshot in addition to whatever other rules you have).
 
 - **Robust retention policies.** \
   Multiple intervals are supported for each period (last, secondly, daily, monthly, yearly). You can have one snapshot every month for 6 months, while also having one every two for 12.
@@ -26,9 +26,6 @@
 
 > [!WARNING]
 > This tool is still in development. While most functionality has been tested and I am using this as part of my own backup scripts, it may still have rough edges, and the command-line interface and API are subject to change. Full automated tests have not been implemented yet.
-
-> [!NOTE]
-> **Known Issue:** While the result of a prune is technically correct, pruning after each snapshot with multiple intervals per unit may remove snapshots which do not yet meet the conditions for the longer interval, but would later be needed for it (e.g., the 5th secondly:1h snapshot with the policy `4@secondly:1h 4@secondly:2h`, even though it would later be used for the 3rd secondly:2h snapshot). I am still considering the advantages and disadvantages of the possible ways to fix this. For now, either run prune at an interval larger than the longest interval for a unit with multiple intervals, or don't use multiple intervals for a single unit.
 
 #### CLI Example
 
