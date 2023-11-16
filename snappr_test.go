@@ -273,15 +273,20 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 		}
 
 		/**
-		 * Add an increasing number of snapshots at a time (if the first few
-		 * work fine wrt the prune consistency checks, it's unlikely that adding
-		 * more will cause issues, so there's no need to do it one at a time --
-		 * if a later check fails, this can always be changed back to
-		 * incrementing it one at a time to figure out exactly what caused the
-		 * failure).
+		 * Add an increasing number of snapshots at a time (if the first 2k and
+		 * last 50 work fine wrt the prune consistency checks, it's unlikely
+		 * that adding more will fail differently, so there's no need to do it
+		 * one at a time -- if a middle check fails, this can always be changed
+		 * back to incrementing it one at a time to figure out exactly what
+		 * caused the failure).
 		 */
-		nextSubset := min(subset+i*i*2, len(allSnapshots)-1)
-		if prevSubset == nextSubset {
+		var nextSubset int
+		if subset > 2000 && subset+50 < len(allSnapshots) {
+			nextSubset = subset + len(allSnapshots)/75
+		} else {
+			nextSubset = subset + 1
+		}
+		if nextSubset = min(nextSubset, len(allSnapshots)-1); prevSubset == nextSubset {
 			break // we've checked everything
 		}
 		prevNeed = need
