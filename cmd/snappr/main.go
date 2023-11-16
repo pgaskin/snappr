@@ -167,7 +167,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			} else {
 				if m := extract.FindStringSubmatch(line); m == nil {
 					if !*Quiet {
-						fmt.Fprintf(stderr, "snappr: warning: failed to parse unix timestamp %q: %v\n", ts, err)
+						fmt.Fprintf(stderr, "snappr: warning: failed extract timestamp from %q using regexp %q\n", line, extract.String())
 						bad = true
 					}
 				} else {
