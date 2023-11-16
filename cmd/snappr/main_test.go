@@ -58,7 +58,7 @@ func Test(t *testing.T) {
 			stdout = bytes.ReplaceAll(stdout, []byte(newline), []byte{'\n'})
 		}
 		if stderr != nil {
-			stderr = bytes.ReplaceAll(stdout, []byte(stderr), []byte{'\n'})
+			stderr = bytes.ReplaceAll(stderr, []byte(newline), []byte{'\n'})
 		}
 
 		var status int
