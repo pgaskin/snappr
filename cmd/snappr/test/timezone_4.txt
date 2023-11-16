@@ -1,0 +1,6 @@
+-- args --
+snappr -wp "2006-01-02 15:04:05 MST" -z EST5EDT last
+-- stdin --
+2023-01-02 03:04:05 UTC
+-- stderr --
+snappr: why: keep [1/1] Sun 2023 Jan  1 22:04:05 :: last

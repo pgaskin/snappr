@@ -1,0 +1,4 @@
+-- args --
+2: snappr -z "" last
+-- stdin --
+0
