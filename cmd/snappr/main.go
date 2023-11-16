@@ -142,8 +142,8 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		} else {
 			extract, err = regexp.CompilePOSIX(*Extract)
 		}
-		if err == nil && extract.NumSubexp() > 2 {
-			err = fmt.Errorf("must contain up to one capture group")
+		if err == nil && extract.NumSubexp() > 1 {
+			err = fmt.Errorf("must contain no more than one capture group")
 		}
 		if err != nil {
 			fmt.Fprintf(stderr, "snappr: fatal: --extract regexp is invalid: %v\n", err)
