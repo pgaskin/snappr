@@ -114,7 +114,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return 0
 	}
 
-	if pflag.NArg() < 1 {
+	if opt.NArg() < 1 {
 		fmt.Fprintf(stderr, "snappr: fatal: at least one policy must be specified (see --help)\n")
 		return 2
 	}
