@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+	_ "time/tzdata"
 )
 
 func TestParsePolicy(t *testing.T) {
@@ -125,7 +128,14 @@ func TestParsePolicy(t *testing.T) {
 }
 
 // pruneCorrectness checks that guarantees provided by Prune are upheld.
-func pruneCorrectness(snapshots []time.Time, policy Policy) error {
+func pruneCorrectness(snapshots []time.Time, policy Policy, loc *time.Location) error {
+	{
+		tmp := make([]time.Time, len(snapshots))
+		for i, t := range snapshots {
+			tmp[i] = t.In(loc)
+		}
+		snapshots = tmp
+	}
 	var (
 		prevNeed   Policy
 		prevSubset = -1
@@ -135,7 +145,7 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 		allSnapshots := snapshots
 		snapshots := snapshots[:subset]
 
-		keep, need := Prune(snapshots, policy)
+		keep, need := Prune(snapshots, policy, loc)
 
 		/**
 		 * Prune "keep" output will be like the input snapshots, but with a
@@ -194,7 +204,7 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 		/**
 		 * Pruning is reproducible.
 		 */
-		rKeep, rNeed := Prune(snapshots, policy)
+		rKeep, rNeed := Prune(snapshots, policy, loc)
 		if !maps.Equal(rNeed.count, need.count) {
 			return fmt.Errorf("subset %d: prune reproducibility: need: does not equal original need", subset)
 		}
@@ -228,7 +238,7 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 				filteredSnap = append(filteredSnap, snapshots[at])
 			}
 		}
-		iKeep, iNeed := Prune(filteredSnap, policy)
+		iKeep, iNeed := Prune(filteredSnap, policy, loc)
 		if !maps.Equal(iNeed.count, need.count) {
 			return fmt.Errorf("subset %d: prune idempotentency: need: does not equal original need", subset)
 		}
@@ -252,7 +262,7 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 					case Last:
 						continue
 					case Secondly:
-						key = period.Unit.String() + " " + snapshots[at].Truncate(-1).Format("2006-01-02 15:04:05")
+						key = period.Unit.String() + " " + strconv.FormatInt(snapshots[at].Truncate(-1).Unix(), 10)
 					case Daily:
 						key = period.Unit.String() + " " + snapshots[at].Truncate(-1).Format("2006-01-02")
 					case Monthly:
@@ -289,7 +299,7 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 		 */
 		if subset != 0 {
 			lastKept = append(lastKept, snapshots[prevSubset:]...)
-			pKeep, _ := Prune(lastKept, policy)
+			pKeep, _ := Prune(lastKept, policy, loc)
 
 			var incN, absN int
 			lastKept = lastKept[:0]
@@ -335,6 +345,15 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 }
 
 func TestPrune(t *testing.T) {
+	var locs []*time.Location
+	locs = append(locs, time.UTC)
+	for _, x := range []string{"EST5EDT", "WET", "Pacific/Chatham"} { // a variety of offsets
+		if loc, err := time.LoadLocation(x); err != nil {
+			panic(err)
+		} else {
+			locs = append(locs, loc)
+		}
+	}
 	for _, tc := range []func() (
 		times []time.Time,
 		policy Policy,
@@ -389,7 +408,7 @@ func TestPrune(t *testing.T) {
 			}
 
 			t.Run("Output", func(t *testing.T) {
-				keep, need := Prune(times, policy)
+				keep, need := Prune(times, policy, times[0].Location())
 
 				var b bytes.Buffer
 				for at, reason := range keep {
@@ -419,8 +438,17 @@ func TestPrune(t *testing.T) {
 			})
 
 			t.Run("Correctness", func(t *testing.T) {
-				if err := pruneCorrectness(times, policy); err != nil {
-					t.Error(err.Error())
+				for _, loc := range locs {
+					loc := loc
+					t.Run(loc.String(), func(t *testing.T) {
+						t.Parallel()
+						runtime.LockOSThread()
+						defer runtime.UnlockOSThread()
+
+						if err := pruneCorrectness(times, policy, loc); err != nil {
+							t.Error(err.Error())
+						}
+					})
 				}
 			})
 		})
@@ -448,7 +476,7 @@ func ExamplePrune() {
 	policy.MustSet(Last, 1, 3)
 	fmt.Println(policy)
 
-	keep, need := Prune(times, policy)
+	keep, need := Prune(times, policy, time.UTC)
 	for at, reason := range keep {
 		at := times[at]
 		if len(reason) != 0 {

@@ -318,14 +318,16 @@ func (p Policy) MarshalText() ([]byte, error) {
 // periods requiring that snapshot, and the remaining number of snapshots
 // required to fulfill the original policy.
 //
-// The timezone doesn't matter and doesn't need to be consistent since snapshots
-// are ordered by their UTC time value. The timezone will only affect where
-// days/months/years are split for the purpose of determining the calendar
-// day/month/year.
+// All snapshots are placed in the provided timezone, and the monotonic time
+// component is removed. The timezone affects the exact point at which calendar
+// days/months/years are split. Beware of duplicate timestamps at DST
+// transitions (if the offset isn't included whatever you use as the snapshot
+// name, and your timezone has DST, you may end up with two snapshots for
+// different times with the same name).
 //
 // See pruneCorrectness in snappr_test.go for some additional notes about
 // guarantees provided by Prune.
-func Prune(snapshots []time.Time, policy Policy) (keep [][]Period, need Policy) {
+func Prune(snapshots []time.Time, policy Policy, loc *time.Location) (keep [][]Period, need Policy) {
 	need = policy.Clone()
 	keep = make([][]Period, len(snapshots))
 
@@ -351,7 +353,7 @@ func Prune(snapshots []time.Time, policy Policy) (keep [][]Period, need Policy) 
 		// start from the beginning, marking the first one in each period
 		for i := range snapshots {
 			var current int64
-			switch t := snapshots[sorted[i]].Truncate(-1); period.Unit {
+			switch t := snapshots[sorted[i]].In(loc).Truncate(-1); period.Unit {
 			case Last:
 				match[i] = true
 				continue

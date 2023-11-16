@@ -19,7 +19,7 @@
   Can extract dates in arbitrary formats from arbitrary parts of a line, preserving the entire line, and ignoring or passing-through unmatched or invalid lines.
 
 - **Zone-aware timestamp handling.** \
-  Will work correctly with mixed timezones, sorting by the real time, but using the calendar day/month/year from the zoned time.
+  Will work correctly with different timezones, sorting and determining secondly snapshots by the real time, but using the calendar day/month/year from the zoned time.
 
 - **Verbose debugging information.** \
   You can view which intervals caused a specific snapshot to be retained, and whether a retention policy wants more snapshots than it found.
@@ -61,19 +61,20 @@ $ btrfs subvol list -r /mnt/bkp/ |
 #### CLI Usage
 
 ```
-usage: snappr [options] policy...
+usage: /tmp/go-build2822248938/b001/exe/snappr [options] policy...
 
 options:
-  -E, --extended-regexp   use full regexp syntax rather than POSIX (see pkg.go.dev/regexp/syntax)
-  -e, --extract string    extract the timestamp from each input line using the provided regexp, which must contain up to one capture group
-  -h, --help              show this help text
-  -v, --invert            output the snapshots to keep instead of the ones to prune
-  -L, --local-time        use the default timezone rather than UTC if no timezone is parsed from the timestamp
-  -o, --only              only print the part of the line matching the regexp
-  -p, --parse string      parse the timestamp using the specified Go time format (see pkg.go.dev/time#pkg-constants and the examples below) rather than a unix timestamp
-  -q, --quiet             do not show warnings about invalid or unmatched input lines
-  -s, --summarize         summarize retention policy results to stderr
-  -w, --why               explain why each snapshot is being kept to stderr
+  -E, --extended-regexp     use full regexp syntax rather than POSIX (see pkg.go.dev/regexp/syntax)
+  -e, --extract string      extract the timestamp from each input line using the provided regexp, which must contain up to one capture group
+  -h, --help                show this help text
+  -v, --invert              output the snapshots to keep instead of the ones to prune
+  -o, --only                only print the part of the line matching the regexp
+  -p, --parse string        parse the timestamp using the specified Go time format (see pkg.go.dev/time#pkg-constants and the examples below) rather than a unix timestamp
+  -Z, --parse-timezone tz   use a specific timezone rather than whatever is set for --timezone if no timezone is parsed from the timestamp itself
+  -q, --quiet               do not show warnings about invalid or unmatched input lines
+  -s, --summarize           summarize retention policy results to stderr
+  -z, --timezone tz         convert all timestamps to this timezone while pruning snapshots (use "local" for the default system timezone) (default UTC)
+  -w, --why                 explain why each snapshot is being kept to stderr
 
 time format examples:
   - Mon Jan 02 15:04:05 2006
@@ -88,7 +89,7 @@ policy: N@unit:X
   - there may only be one N specified for each unit:X pair
 
 unit:
-  last       snapshot count
+  last       snapshot count (X must be 1)
   secondly   clock seconds (can also use the format #h#m#s, omitting any zeroed units)
   daily      calendar days
   monthly    calendar months
@@ -99,7 +100,9 @@ notes:
   - input is read from stdin, and should consist of unix timestamps (or more if --extract and/or --parse are set)
   - invalid/unmatched input lines are ignored, or passed through if --invert is set (and a warning is printed unless --quiet is set)
   - everything will still work correctly even if timezones are different
-  - snapshots are ordered by their UTC time
+  - snapshots are always ordered by their real (i.e., UTC) time
+  - if using --parse-in, beware of duplicate timestamps at DST transitions (if the offset isn't included whatever you use as the
+    snapshot name, and your timezone has DST, you may end up with two snapshots for different times with the same name.
   - timezones will only affect the exact point at which calendar days/months/years are split
 ```
 

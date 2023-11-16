@@ -21,12 +21,52 @@ var (
 	Extended  = pflag.BoolP("extended-regexp", "E", false, "use full regexp syntax rather than POSIX (see pkg.go.dev/regexp/syntax)")
 	Only      = pflag.BoolP("only", "o", false, "only print the part of the line matching the regexp")
 	Parse     = pflag.StringP("parse", "p", "", "parse the timestamp using the specified Go time format (see pkg.go.dev/time#pkg-constants and the examples below) rather than a unix timestamp")
-	Local     = pflag.BoolP("local-time", "L", false, "use the default timezone rather than UTC if no timezone is parsed from the timestamp")
+	ParseIn   = pflag_TimezoneP("parse-timezone", "Z", nil, "use a specific timezone rather than whatever is set for --timezone if no timezone is parsed from the timestamp itself")
+	In        = pflag_TimezoneP("timezone", "z", time.UTC, "convert all timestamps to this timezone while pruning snapshots (use \"local\" for the default system timezone)")
 	Invert    = pflag.BoolP("invert", "v", false, "output the snapshots to keep instead of the ones to prune")
 	Why       = pflag.BoolP("why", "w", false, "explain why each snapshot is being kept to stderr")
 	Summarize = pflag.BoolP("summarize", "s", false, "summarize retention policy results to stderr")
 	Help      = pflag.BoolP("help", "h", false, "show this help text")
 )
+
+type timezoneFlag struct {
+	loc *time.Location
+}
+
+func pflag_TimezoneP(name, shorthand string, value *time.Location, usage string) **time.Location {
+	f := &timezoneFlag{value}
+	pflag.VarP(f, name, shorthand, usage)
+	return &f.loc
+}
+
+func (t *timezoneFlag) Type() string {
+	return "tz"
+}
+
+func (t *timezoneFlag) String() string {
+	if t.loc == nil {
+		return ""
+	}
+	return t.loc.String()
+}
+
+func (t *timezoneFlag) Set(s string) error {
+	switch string(s) {
+	case "":
+		t.loc = nil
+	case "UTC", "utc":
+		t.loc = time.UTC
+	case "Local", "local":
+		t.loc = time.Local
+	default:
+		loc, err := time.LoadLocation(s)
+		if err != nil {
+			return err
+		}
+		t.loc = loc
+	}
+	return nil
+}
 
 func main() {
 	pflag.Parse()
@@ -55,13 +95,24 @@ func main() {
 		fmt.Printf("  - input is read from stdin, and should consist of unix timestamps (or more if --extract and/or --parse are set)\n")
 		fmt.Printf("  - invalid/unmatched input lines are ignored, or passed through if --invert is set (and a warning is printed unless --quiet is set)\n")
 		fmt.Printf("  - everything will still work correctly even if timezones are different\n")
-		fmt.Printf("  - snapshots are ordered by their UTC time\n")
+		fmt.Printf("  - snapshots are always ordered by their real (i.e., UTC) time\n")
+		fmt.Printf("  - if using --parse-in, beware of duplicate timestamps at DST transitions (if the offset isn't included whatever you use as the\n")
+		fmt.Printf("    snapshot name, and your timezone has DST, you may end up with two snapshots for different times with the same name.\n")
 		fmt.Printf("  - timezones will only affect the exact point at which calendar days/months/years are split\n")
 		if *Help {
 			os.Exit(0)
 		} else {
 			os.Exit(2)
 		}
+	}
+
+	if *In == nil {
+		fmt.Fprintf(os.Stderr, "snappr: fatal: timezone must not be empty\n")
+		os.Exit(2)
+	}
+
+	if *ParseIn == nil {
+		*ParseIn = *In
 	}
 
 	policy, err := snappr.ParsePolicy(pflag.Args()...)
@@ -87,14 +138,7 @@ func main() {
 		}
 	}
 
-	var tz *time.Location
-	if *Local {
-		tz = time.Local
-	} else {
-		tz = time.UTC
-	}
-
-	times, lines, err := scan(os.Stdin, extract, tz, *Parse, *Quiet, *Only)
+	times, lines, err := scan(os.Stdin, extract, *ParseIn, *Parse, *Quiet, *Only)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "snappr: fatal: failed to read stdin: %v\n", err)
 		os.Exit(2)
@@ -109,7 +153,7 @@ func main() {
 		}
 	}
 
-	keep, need := snappr.Prune(snapshots, policy)
+	keep, need := snappr.Prune(snapshots, policy, *In)
 
 	discard := make([]bool, len(times))
 	for at, why := range keep {
