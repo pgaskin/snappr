@@ -36,6 +36,7 @@ func Test(t *testing.T) {
 		arc := txtar.Parse(txt)
 
 		var args, stdin, stdout, stderr []byte
+		var checkStdout, checkStderr bool
 		for _, f := range arc.Files {
 			switch f.Name {
 			case "args":
@@ -44,8 +45,10 @@ func Test(t *testing.T) {
 				stdin = f.Data
 			case "stdout":
 				stdout = f.Data
+				checkStdout = true
 			case "stderr":
 				stderr = f.Data
+				checkStderr = true
 			}
 		}
 		if args != nil {
@@ -83,7 +86,7 @@ func Test(t *testing.T) {
 			if status != actStatus {
 				t.Errorf("incorrect exit status: expected %d, got %d", status, actStatus)
 			}
-			if stderr != nil && !bytes.Equal(stderr, actStderr.Bytes()) {
+			if checkStderr && !bytes.Equal(stderr, actStderr.Bytes()) {
 				x, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 					A:        difflib.SplitLines(string(stderr)),
 					B:        difflib.SplitLines(actStderr.String()),
@@ -96,7 +99,7 @@ func Test(t *testing.T) {
 				}
 				t.Error(x)
 			}
-			if stdout != nil && !bytes.Equal(stdout, actStdout.Bytes()) {
+			if checkStdout && !bytes.Equal(stdout, actStdout.Bytes()) {
 				x, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 					A:        difflib.SplitLines(string(stdout)),
 					B:        difflib.SplitLines(actStdout.String()),
