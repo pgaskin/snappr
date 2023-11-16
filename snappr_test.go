@@ -323,6 +323,24 @@ func TestPrune(t *testing.T) {
 
 			return times, policy, "a48749a9d6e92ebbc09a5fb3b46a304879fdb1aeebe28264c0885cea0048f8d1"
 		},
+		func() (times []time.Time, policy Policy, output string) {
+			t := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+			for i := 0; i < 24*7*90; i++ {
+				t = t.Add(time.Hour)
+				times = append(times, t)
+			}
+
+			policy.MustSet(Last, 1, 1)
+			policy.MustSet(Secondly, int(time.Hour/time.Second), 6)
+			policy.MustSet(Secondly, int(2*time.Hour/time.Second), 6)
+			policy.MustSet(Daily, 1, 7)
+			policy.MustSet(Daily, 7, 4)
+			policy.MustSet(Monthly, 1, 6)
+			policy.MustSet(Monthly, 2, 6)
+			policy.MustSet(Yearly, 1, -1)
+
+			return times, policy, "1c5391563aef1a2ae123b3a099c00b7635752e64f7a259e4ca4cf32e600e7395"
+		},
 		// TODO: more cases
 	} {
 		t.Run("", func(t *testing.T) {
@@ -353,7 +371,7 @@ func TestPrune(t *testing.T) {
 				b.WriteString(need.String())
 				b.WriteString("\n")
 
-				t.Log(b.String())
+				t.Log("\n" + b.String())
 
 				hash := sha256.Sum256(b.Bytes())
 				actual := hex.EncodeToString(hash[:])
