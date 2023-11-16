@@ -55,7 +55,7 @@ $ btrfs subvol list -r /mnt/bkp/ |
     -p '20060102-150405' \
     1@last 12@secondly:1h 7@daily 4@daily:7 6@monthly 5@yearly yearly:10 |
   cut -d ' ' -f2- |
-  xargs btrfs subvolume delete
+  xargs --no-run-if-empty btrfs subvolume delete
 ```
 
 #### CLI Usage
