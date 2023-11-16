@@ -243,7 +243,45 @@ func pruneCorrectness(snapshots []time.Time, policy Policy) error {
 		 * retained due to any yearly rule; same for monthly/calendar month,
 		 * daily/calendar day, secondly/second).
 		 */
-		// TODO
+		{
+			inc := map[string][]int{}
+			for at, reason := range keep {
+				for _, period := range reason {
+					var key string
+					switch period.Unit {
+					case Last:
+						continue
+					case Secondly:
+						key = period.Unit.String() + " " + snapshots[at].Truncate(-1).Format("2006-01-02 15:04:05")
+					case Daily:
+						key = period.Unit.String() + " " + snapshots[at].Truncate(-1).Format("2006-01-02")
+					case Monthly:
+						key = period.Unit.String() + " " + snapshots[at].Truncate(-1).Format("2006-01")
+					case Yearly:
+						key = period.Unit.String() + " " + snapshots[at].Truncate(-1).Format("2006")
+					default:
+						panic("wtf")
+					}
+					if !slices.Contains(inc[key], at) {
+						inc[key] = append(inc[key], at)
+					}
+				}
+			}
+			var dup []string
+			for what, at := range inc {
+				if len(at) > 1 {
+					var s []string
+					for _, at := range at {
+						s = append(s, fmt.Sprintf("%d %s", at, snapshots[at]))
+					}
+					dup = append(dup, fmt.Sprintf("%s = %s", what, strings.Join(s, ", ")))
+				}
+			}
+			if len(dup) != 0 {
+				slices.Sort(dup)
+				return fmt.Errorf("subset %d: prune correctness: multiple snapshots retained per unit increment:\n%s", subset, strings.Join(dup, "\n"))
+			}
+		}
 
 		/**
 		 * Incrementally pruning snapshots will result in the same amount of
