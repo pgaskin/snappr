@@ -199,6 +199,7 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 						t = v
 					}
 				}
+				t = t.In(*In)
 			}
 
 			if bad {
