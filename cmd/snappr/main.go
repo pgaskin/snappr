@@ -108,19 +108,11 @@ func Main(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "  - if using --parse-in, beware of duplicate timestamps at DST transitions (if the offset isn't included whatever you use as the\n")
 		fmt.Fprintf(stdout, "    snapshot name, and your timezone has DST, you may end up with two snapshots for different times with the same name.\n")
 		fmt.Fprintf(stdout, "  - timezones will only affect the exact point at which calendar days/months/years are split\n")
-		if !*Help {
-			return 2
-		}
 		return 0
 	}
 
 	if opt.NArg() < 1 {
 		fmt.Fprintf(stderr, "snappr: fatal: at least one policy must be specified (see --help)\n")
-		return 2
-	}
-
-	if *In == nil {
-		fmt.Fprintf(stderr, "snappr: fatal: timezone must not be empty\n")
 		return 2
 	}
 
