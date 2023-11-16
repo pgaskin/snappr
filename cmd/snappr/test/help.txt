@@ -1,0 +1,4 @@
+-- args --
+0: snappr --help
+
+-- stderr --
