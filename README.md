@@ -24,9 +24,6 @@
 - **Verbose debugging information.** \
   You can view which intervals caused a specific snapshot to be retained, and whether a retention policy wants more snapshots than it found.
 
-> [!WARNING]
-> This tool is still very new. While most functionality has been tested and I am using this as part of my own backup scripts, it may still have rough edges, and the command-line interface and API are subject to change.
-
 #### CLI Example
 
 ```bash
